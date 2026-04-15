@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background-color: #FAF7F2;
+    color: #1C1817;
+    -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+    font-weight: 400;
+    line-height: 1.7;
+    min-height: 100dvh;
+  }
+
+  img {
+    display: block;
+    width: 100%;
+  }
+}
+
+@layer components {
+  .btn-icon {
+    @apply flex items-center justify-center w-10 h-10 rounded-full
+           text-stone-500 hover:text-sakura-500 hover:bg-sakura-50
+           transition-colors duration-200;
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-xs font-medium tracking-wide;
+  }
+
+  .badge-type {
+    @apply badge bg-sakura-50 text-sakura-600;
+  }
+
+  .badge-pref {
+    @apply badge bg-stone-100 text-stone-500;
+  }
+}
+
+@layer utilities {
+  .font-mincho {
+    font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', system-ui, sans-serif;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
