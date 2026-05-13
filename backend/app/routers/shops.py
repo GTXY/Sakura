@@ -6,8 +6,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
-from app.models import Shop, ShopPhoto
+from app.deps import get_current_user, optional_user
+from app.gcs import object_to_url
+from app.models import Shop, ShopPhoto, User
 from app.schemas import ShopCreate, ShopOut, ShopUpdate, StatsOut
 
 router = APIRouter(prefix="/shops", tags=["shops"])
@@ -16,23 +19,35 @@ VALID_CATEGORIES = {"餐飲", "購物", "娛樂", "美容養生", "生活服務"
 
 
 def _shop_to_out(shop: Shop) -> ShopOut:
-    return ShopOut.model_validate(
-        {**shop.__dict__, "photos": [p.url for p in shop.photos]}
-    )
+    return ShopOut.model_validate({
+        **shop.__dict__,
+        "cover_image": object_to_url(settings.gcs_bucket_name, shop.cover_image),
+        "photos": [object_to_url(settings.gcs_bucket_name, p.url) for p in shop.photos],
+    })
 
 
 # ── GET /api/shops ───────────────────────────────────────────────
 @router.get("", response_model=list[ShopOut])
 async def list_shops(
-    sort: Literal["recent", "rating", "featured"] = "recent",
+    sort: Literal["recent", "featured", "mine"] = "recent",
     category: str | None = Query(default=None),
     prefecture: str | None = Query(default=None),
     q: str | None = Query(default=None, description="搜尋關鍵字"),
     limit: int = Query(default=10, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db),
+    current_user: User | None = Depends(optional_user),
 ):
-    stmt = select(Shop).options(selectinload(Shop.photos))
+    if sort == "mine":
+        if not current_user:
+            raise HTTPException(status_code=401, detail="需要登入才能查看我的探訪")
+        stmt = (
+            select(Shop)
+            .options(selectinload(Shop.photos))
+            .where(Shop.user_id == current_user.id)
+        )
+    else:
+        stmt = select(Shop).options(selectinload(Shop.photos))
 
     if category:
         stmt = stmt.where(Shop.category == category)
@@ -49,15 +64,12 @@ async def list_shops(
             | Shop.city.ilike(pattern)
         )
 
-    if sort == "rating":
-        stmt = stmt.order_by(Shop.rating.desc())
-    elif sort == "featured":
+    if sort == "featured":
         stmt = stmt.order_by(Shop.featured.desc(), Shop.visit_date.desc())
     else:
         stmt = stmt.order_by(Shop.visit_date.desc())
 
     stmt = stmt.limit(limit).offset(offset)
-
     result = await db.execute(stmt)
     return [_shop_to_out(s) for s in result.scalars().all()]
 
@@ -86,13 +98,17 @@ async def get_shop(shop_id: UUID, db: AsyncSession = Depends(get_db)):
 
 # ── POST /api/shops ──────────────────────────────────────────────
 @router.post("", response_model=ShopOut, status_code=201)
-async def create_shop(body: ShopCreate, db: AsyncSession = Depends(get_db)):
+async def create_shop(
+    body: ShopCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     if body.category not in VALID_CATEGORIES:
         raise HTTPException(status_code=422, detail=f"無效的分類：{body.category}")
     if not (0.0 <= body.rating <= 5.0):
         raise HTTPException(status_code=422, detail="評分需在 0.0 ~ 5.0 之間")
 
-    shop = Shop(**body.model_dump(by_alias=False))
+    shop = Shop(**body.model_dump(by_alias=False), user_id=current_user.id)
     db.add(shop)
     await db.commit()
     await db.refresh(shop)
@@ -105,7 +121,12 @@ async def create_shop(body: ShopCreate, db: AsyncSession = Depends(get_db)):
 
 # ── PUT /api/shops/{id} ──────────────────────────────────────────
 @router.put("/{shop_id}", response_model=ShopOut)
-async def update_shop(shop_id: UUID, body: ShopUpdate, db: AsyncSession = Depends(get_db)):
+async def update_shop(
+    shop_id: UUID,
+    body: ShopUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     result = await db.execute(
         select(Shop).options(selectinload(Shop.photos)).where(Shop.id == shop_id)
     )
@@ -133,7 +154,11 @@ async def update_shop(shop_id: UUID, body: ShopUpdate, db: AsyncSession = Depend
 
 # ── DELETE /api/shops/{id} ───────────────────────────────────────
 @router.delete("/{shop_id}", status_code=204)
-async def delete_shop(shop_id: UUID, db: AsyncSession = Depends(get_db)):
+async def delete_shop(
+    shop_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     shop = result.scalar_one_or_none()
     if not shop:

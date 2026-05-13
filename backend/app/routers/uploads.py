@@ -1,31 +1,34 @@
 import uuid
-from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, File
-import aiofiles
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from app.config import settings
+from app.deps import get_current_user
+from app.gcs import object_to_url, upload_file
+from app.models import User
 from app.schemas import UploadOut
 
 router = APIRouter(prefix="/uploads", tags=["uploads"])
 
-ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_TYPES = {"image/jpeg", "image/png"}
+MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post("", response_model=UploadOut, status_code=201)
-async def upload_file(file: UploadFile = File(...)):
-    """上傳圖片並返回可訪問的 URL（供新增店舖時設定封面圖使用）。"""
+async def upload_cover(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+):
+    """上傳封面圖（臨時暫存），返回 GCS 簽名 URL。需要登入。"""
     if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status_code=415, detail=f"不支援的格式：{file.content_type}")
+        raise HTTPException(status_code=415, detail="只接受 JPG 或 PNG 格式")
 
-    ext = Path(file.filename or "img").suffix or ".jpg"
-    file_name = f"{uuid.uuid4().hex}{ext}"
-    save_dir = Path(settings.upload_dir) / "temp"
-    save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / file_name
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="檔案大小不能超過 10 MB")
 
-    async with aiofiles.open(save_path, "wb") as f:
-        content = await file.read()
-        await f.write(content)
+    ext = ".jpg" if file.content_type == "image/jpeg" else ".png"
+    object_name = f"temp/{uuid.uuid4().hex}{ext}"
 
-    return UploadOut(url=f"{settings.base_url}/uploads/temp/{file_name}")
+    upload_file(settings.gcs_bucket_name, object_name, content, file.content_type)
+    return UploadOut(url=object_to_url(settings.gcs_bucket_name, object_name))

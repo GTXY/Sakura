@@ -74,7 +74,7 @@ function setPref(p: string) {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-washi">
+  <div class="min-h-[calc(100dvh-3.625rem)] bg-washi">
 
     <!-- Header -->
     <div class="px-5 pt-4 pb-3 max-w-lg mx-auto">

@@ -1,0 +1,22 @@
+# systemd 服务单元文件
+# 安装方法：
+#   sudo cp sakura-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable sakura-backend
+#   sudo systemctl start sakura-backend
+
+[Unit]
+Description=Sakura Backend (FastAPI)
+After=network.target mysqld.service
+
+[Service]
+Type=exec
+User=www-data
+WorkingDirectory=/var/www/sakura/backend
+ExecStart=/var/www/sakura/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/var/www/sakura/backend/.env
+
+[Install]
+WantedBy=multi-user.target

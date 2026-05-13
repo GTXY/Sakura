@@ -1,34 +1,33 @@
 import uuid
-from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-import aiofiles
 
 from app.config import settings
 from app.database import get_db
-from app.models import Shop, ShopPhoto
+from app.deps import get_current_user
+from app.gcs import delete_file, object_to_url, upload_file
+from app.models import Shop, ShopPhoto, User
 from app.schemas import PhotoOut
 
 router = APIRouter(prefix="/shops/{shop_id}/photos", tags=["photos"])
 
-ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_TYPES = {"image/jpeg", "image/png"}
+MAX_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
-async def _save_file(shop_id: UUID, file: UploadFile) -> str:
-    ext = Path(file.filename or "img").suffix or ".jpg"
-    file_name = f"{uuid.uuid4().hex}{ext}"
-    save_dir = Path(settings.upload_dir) / "shops" / str(shop_id)
-    save_dir.mkdir(parents=True, exist_ok=True)
-    save_path = save_dir / file_name
+async def _upload_photo(shop_id: UUID, file: UploadFile) -> str:
+    """Upload one photo to GCS and return the object path."""
+    content = await file.read()
+    if len(content) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail=f"{file.filename} 超過 10 MB 限制")
 
-    async with aiofiles.open(save_path, "wb") as f:
-        content = await file.read()
-        await f.write(content)
-
-    return f"{settings.base_url}/uploads/shops/{shop_id}/{file_name}"
+    ext = ".jpg" if file.content_type == "image/jpeg" else ".png"
+    object_name = f"shops/{shop_id}/{uuid.uuid4().hex}{ext}"
+    upload_file(settings.gcs_bucket_name, object_name, content, file.content_type)
+    return object_name
 
 
 # ── POST /api/shops/{shop_id}/photos ────────────────────────────
@@ -37,12 +36,16 @@ async def upload_photos(
     shop_id: UUID,
     files: list[UploadFile] = File(...),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     result = await db.execute(select(Shop).where(Shop.id == shop_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="店舖不存在")
 
-    # Determine current max sort_order
+    for file in files:
+        if file.content_type not in ALLOWED_TYPES:
+            raise HTTPException(status_code=415, detail=f"{file.filename} 只接受 JPG 或 PNG 格式")
+
     max_order_result = await db.execute(
         select(ShopPhoto.sort_order)
         .where(ShopPhoto.shop_id == shop_id)
@@ -53,14 +56,15 @@ async def upload_photos(
 
     saved: list[PhotoOut] = []
     for i, file in enumerate(files):
-        if file.content_type not in ALLOWED_TYPES:
-            raise HTTPException(status_code=415, detail=f"不支援的圖片格式：{file.content_type}")
-
-        url = await _save_file(shop_id, file)
-        photo = ShopPhoto(shop_id=shop_id, url=url, sort_order=max_order + 1 + i)
+        object_name = await _upload_photo(shop_id, file)
+        photo = ShopPhoto(shop_id=shop_id, url=object_name, sort_order=max_order + 1 + i)
         db.add(photo)
         await db.flush()
-        saved.append(PhotoOut(id=photo.id, url=photo.url, sort_order=photo.sort_order))
+        saved.append(PhotoOut(
+            id=photo.id,
+            url=object_to_url(settings.gcs_bucket_name, photo.url),
+            sort_order=photo.sort_order,
+        ))
 
     await db.commit()
     return saved
@@ -68,7 +72,12 @@ async def upload_photos(
 
 # ── DELETE /api/shops/{shop_id}/photos/{photo_id} ───────────────
 @router.delete("/{photo_id}", status_code=204)
-async def delete_photo(shop_id: UUID, photo_id: UUID, db: AsyncSession = Depends(get_db)):
+async def delete_photo(
+    shop_id: UUID,
+    photo_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     result = await db.execute(
         select(ShopPhoto).where(ShopPhoto.id == photo_id, ShopPhoto.shop_id == shop_id)
     )
@@ -76,11 +85,8 @@ async def delete_photo(shop_id: UUID, photo_id: UUID, db: AsyncSession = Depends
     if not photo:
         raise HTTPException(status_code=404, detail="相片不存在")
 
-    # Best-effort: remove local file
-    url_path = photo.url.replace(settings.base_url, "").lstrip("/")
-    local_file = Path(url_path)
-    if local_file.exists():
-        local_file.unlink(missing_ok=True)
+    if not photo.url.startswith("http"):
+        delete_file(settings.gcs_bucket_name, photo.url)
 
     await db.delete(photo)
     await db.commit()

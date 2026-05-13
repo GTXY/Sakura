@@ -1,26 +1,40 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import ShopCard from '../components/ShopCard.vue'
 import { fetchStats } from '../api/shops'
 import type { Stats } from '../api/shops'
 import { useInfiniteShops } from '../composables/useInfiniteShops'
+import { useAuthStore } from '../stores/auth'
 
-type SortKey = 'recent' | 'rating' | 'featured'
+type SortKey = 'recent' | 'featured' | 'mine'
 
+const authStore = useAuthStore()
 const sortKey = ref<SortKey>('recent')
 const stats = ref<Stats>({ total: 0, prefectures: 0 })
 
-const sortOptions: { key: SortKey; label: string }[] = [
-  { key: 'recent', label: '最新探訪' },
-  { key: 'rating', label: '評分最高' },
-  { key: 'featured', label: '精選推薦' },
-]
+const sortOptions = computed<{ key: SortKey; label: string }[]>(() => {
+  const base: { key: SortKey; label: string }[] = [
+    { key: 'recent', label: '最新探訪' },
+    { key: 'featured', label: '精選推薦' },
+  ]
+  if (authStore.isLoggedIn) {
+    base.push({ key: 'mine', label: '我的探訪' })
+  }
+  return base
+})
+
+// If user logs out while on 'mine' tab, switch back to 'recent'
+watch(
+  () => authStore.isLoggedIn,
+  (loggedIn) => {
+    if (!loggedIn && sortKey.value === 'mine') sortKey.value = 'recent'
+  },
+)
 
 const { shops, loading, loadingMore, hasMore, reset, sentinelRef } = useInfiniteShops(
   () => ({ sort: sortKey.value }),
 )
 
-// When sort changes, reset to first page
 watch(sortKey, reset)
 
 onMounted(() => {
@@ -29,7 +43,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh bg-washi">
+  <div class="min-h-[calc(100dvh-3.625rem)] bg-washi">
     <!-- Hero section -->
     <section class="relative overflow-hidden">
       <!-- Decorative sakura petals — fully inside section, no overflow clipping -->
@@ -144,6 +158,60 @@ onMounted(() => {
       </div>
 
       <template v-else>
+        <!-- Empty state for 我的探訪 -->
+        <div
+          v-if="sortKey === 'mine' && !shops.length"
+          class="flex flex-col items-center justify-center py-20 gap-5 select-none"
+        >
+          <!-- Illustration -->
+          <div class="relative w-24 h-24">
+            <!-- Soft background circle -->
+            <div class="absolute inset-0 rounded-full bg-sakura-50 border border-sakura-100" />
+            <!-- Centre sakura -->
+            <svg
+              class="absolute inset-0 m-auto text-sakura-300"
+              width="48" height="48" viewBox="0 0 24 24" fill="currentColor"
+            >
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(72 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(144 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(216 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(288 12 12)" />
+              <circle cx="12" cy="12" r="2.2" fill="#FAF7F2" />
+              <circle cx="12" cy="12" r="1" fill="currentColor" opacity="0.5" />
+            </svg>
+            <!-- Floating tiny petal top-right -->
+            <svg
+              class="absolute -top-1 right-2 text-sakura-200 opacity-70"
+              style="transform: rotate(20deg)"
+              width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
+            >
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(72 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(144 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(216 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(288 12 12)" />
+            </svg>
+            <!-- Floating tiny petal bottom-left -->
+            <svg
+              class="absolute bottom-0 -left-1 text-sakura-300 opacity-50"
+              style="transform: rotate(-30deg)"
+              width="10" height="10" viewBox="0 0 24 24" fill="currentColor"
+            >
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(72 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(144 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(216 12 12)" />
+              <ellipse cx="12" cy="5.5" rx="2.6" ry="4.5" transform="rotate(288 12 12)" />
+            </svg>
+          </div>
+
+          <!-- Text -->
+          <div class="text-center space-y-1.5">
+            <p class="text-sm font-medium text-stone-600">還沒有探訪記錄</p>
+          </div>
+        </div>
+
         <TransitionGroup name="list" tag="div" class="space-y-8">
           <ShopCard
             v-for="shop in shops"

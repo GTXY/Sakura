@@ -10,7 +10,7 @@ const fabHovered = ref(false)
 </script>
 
 <template>
-  <AppNav />
+  <AppNav v-if="route.name !== 'login'" />
   <router-view />
 
   <!-- Floating action button: 只在首頁顯示 -->

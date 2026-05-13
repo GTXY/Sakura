@@ -1,6 +1,6 @@
 import type { Shop, ShopCategory } from '../types/shop'
 
-const BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE = `${import.meta.env.BASE_URL}api`
 
 export interface Stats {
   total: number
@@ -10,7 +10,7 @@ export interface Stats {
 export const PAGE_SIZE = 10
 
 export interface ShopListParams {
-  sort?: 'recent' | 'rating' | 'featured'
+  sort?: 'recent' | 'featured' | 'mine'
   category?: string
   pref?: string
   search?: string
@@ -37,10 +37,19 @@ export interface CreateShopPayload {
   featured: boolean
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem('sakura_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+  const res = await fetch(path, {
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
+      ...init?.headers,
+    },
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
@@ -52,7 +61,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 // ── Stats ────────────────────────────────────────────────────────
 
 export function fetchStats(): Promise<Stats> {
-  return request<Stats>('/api/shops/stats')
+  return request<Stats>(`${API_BASE}/shops/stats`)
 }
 
 // ── Shop list ────────────────────────────────────────────────────
@@ -65,19 +74,19 @@ export function fetchShops(params: ShopListParams = {}): Promise<Shop[]> {
   if (params.search) q.set('q', params.search)
   q.set('limit', String(params.limit ?? PAGE_SIZE))
   q.set('offset', String(params.offset ?? 0))
-  return request<Shop[]>(`/api/shops?${q.toString()}`)
+  return request<Shop[]>(`${API_BASE}/shops?${q.toString()}`)
 }
 
 // ── Single shop ──────────────────────────────────────────────────
 
 export function fetchShop(id: string): Promise<Shop> {
-  return request<Shop>(`/api/shops/${id}`)
+  return request<Shop>(`${API_BASE}/shops/${id}`)
 }
 
 // ── Create shop ──────────────────────────────────────────────────
 
 export function createShop(payload: CreateShopPayload): Promise<Shop> {
-  return request<Shop>('/api/shops', {
+  return request<Shop>(`${API_BASE}/shops`, {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -88,7 +97,11 @@ export function createShop(payload: CreateShopPayload): Promise<Shop> {
 export async function uploadCover(file: File): Promise<string> {
   const fd = new FormData()
   fd.append('file', file)
-  const res = await fetch(`${BASE}/api/uploads`, { method: 'POST', body: fd })
+  const res = await fetch(`${API_BASE}/uploads`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: fd,
+  })
   if (!res.ok) throw new Error(`Upload failed: ${res.status}`)
   const data = (await res.json()) as { url: string }
   return data.url
@@ -99,6 +112,10 @@ export async function uploadCover(file: File): Promise<string> {
 export async function uploadPhotos(shopId: string, files: File[]): Promise<void> {
   const fd = new FormData()
   files.forEach((f) => fd.append('files', f))
-  const res = await fetch(`${BASE}/api/shops/${shopId}/photos`, { method: 'POST', body: fd })
+  const res = await fetch(`${API_BASE}/shops/${shopId}/photos`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: fd,
+  })
   if (!res.ok) throw new Error(`Photo upload failed: ${res.status}`)
 }
