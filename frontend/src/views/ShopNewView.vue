@@ -10,6 +10,7 @@ const router = useRouter()
 
 const form = ref({
   name: '',
+  postalCode: '',
   prefecture: '',
   city: '',
   address: '',
@@ -36,118 +37,144 @@ const submitting = ref(false)
 const errorMsg = ref('')
 
 // ── Location states ───────────────────────────────────────────────
-const locating = ref(false)      // GPS / IP detection in progress
-const geocoding = ref(false)     // address → coordinates in progress
-const locateMsg = ref('')        // feedback message for the user
+const lookingUpPostal = ref(false)
+const locateMsg = ref('')
 
 const NOM_HEADERS = {
-  'User-Agent': '桜探記/1.0 (personal travel journal)',
   'Accept-Language': 'ja,zh-TW;q=0.8',
 }
 
-/** Reverse-geocode lat/lng → fill prefecture & city */
-async function reverseGeocode(lat: number, lng: number) {
-  const res = await fetch(
-    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
-    { headers: NOM_HEADERS },
-  )
-  if (!res.ok) return
-  const data = await res.json()
-  const addr = data.address ?? {}
+// ── Address autocomplete ──────────────────────────────────────────
+interface AddressSuggestion {
+  display_name: string
+  lat: string
+  lon: string
+  address: Record<string, string>
+}
+
+const addressSuggestions = ref<AddressSuggestion[]>([])
+const showSuggestions = ref(false)
+const addressLoading = ref(false)
+let addressDebounce: ReturnType<typeof setTimeout> | null = null
+
+function onAddressInput(e: Event) {
+  const val = (e.target as HTMLInputElement).value
+  form.value.address = val
+  if (addressDebounce) clearTimeout(addressDebounce)
+  const q = val.trim()
+  if (q.length < 2) {
+    addressSuggestions.value = []
+    showSuggestions.value = false
+    return
+  }
+  addressDebounce = setTimeout(async () => {
+    addressLoading.value = true
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=jp&limit=5&addressdetails=1`,
+        { headers: NOM_HEADERS },
+      )
+      if (!res.ok) return
+      const data: AddressSuggestion[] = await res.json()
+      addressSuggestions.value = data
+      showSuggestions.value = data.length > 0
+    } catch (err) { console.error('[Nominatim]', err) } finally {
+      addressLoading.value = false
+    }
+  }, 400)
+}
+
+function selectSuggestion(s: AddressSuggestion) {
+  form.value.address = s.display_name.split(',')[0].trim()
+  form.value.lat = parseFloat(s.lat)
+  form.value.lng = parseFloat(s.lon)
+  const addr = s.address
   const pref = addr.state ?? addr.province ?? ''
   const city = addr.city_district ?? addr.suburb ?? addr.city ?? addr.town ?? addr.county ?? ''
   if (pref && prefectures.includes(pref)) form.value.prefecture = pref
   if (city) form.value.city = city
+  showSuggestions.value = false
+  addressSuggestions.value = []
 }
 
-/** GPS → reverse geocode → fill fields */
-async function detectByGPS(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('not supported')); return }
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        form.value.lat = pos.coords.latitude
-        form.value.lng = pos.coords.longitude
-        await reverseGeocode(pos.coords.latitude, pos.coords.longitude)
-        resolve()
-      },
-      reject,
-      { timeout: 8000, maximumAge: 60000 },
-    )
-  })
-}
-
-/** IP geolocation fallback → fill lat/lng + reverse geocode */
-async function detectByIP() {
-  const res = await fetch('https://ipapi.co/json/')
-  if (!res.ok) throw new Error('IP geo failed')
-  const data = await res.json()
-  form.value.lat = data.latitude
-  form.value.lng = data.longitude
-  await reverseGeocode(data.latitude, data.longitude)
-}
-
-/** Main detect entry: GPS first, fall back to IP */
-async function detectLocation() {
-  locating.value = true
-  locateMsg.value = '定位中…'
+// ── Silent GPS/IP detection (only moves map, no UI) ──────────────
+async function detectSilent() {
   try {
-    await detectByGPS()
-    locateMsg.value = 'GPS 定位成功'
+    await new Promise<void>((resolve, reject) => {
+      if (!navigator.geolocation) { reject(new Error('not supported')); return }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          form.value.lat = pos.coords.latitude
+          form.value.lng = pos.coords.longitude
+          resolve()
+        },
+        reject,
+        { timeout: 15000, maximumAge: 60000 },
+      )
+    })
   } catch {
     try {
-      locateMsg.value = 'GPS 不可用，嘗試 IP 定位…'
-      await detectByIP()
-      locateMsg.value = 'IP 定位成功（精度：城市級）'
-    } catch {
-      locateMsg.value = '自動定位失敗，請手動填寫'
-    }
-  } finally {
-    locating.value = false
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 5000)
+      try {
+        const res = await fetch('https://ipapi.co/json/', { signal: controller.signal })
+        if (res.ok) {
+          const data = await res.json()
+          form.value.lat = data.latitude
+          form.value.lng = data.longitude
+        }
+      } finally {
+        clearTimeout(timer)
+      }
+    } catch { /* stay at default Tokyo */ }
   }
 }
 
-/** Forward geocode: prefecture + city + address → lat/lng */
-async function geocodeAddress() {
-  const q = [form.value.prefecture, form.value.city, form.value.address].filter(Boolean).join(' ')
-  if (!q) return
-  geocoding.value = true
-  locateMsg.value = '搜尋地址中…'
+onMounted(() => { detectSilent() })
+
+/** Japan postal code lookup → fill prefecture, city, address */
+async function lookupPostalCode() {
+  const code = form.value.postalCode.replace(/[^0-9]/g, '')
+  if (code.length !== 7) {
+    locateMsg.value = '郵便番号は7桁で入力してください'
+    return
+  }
+  lookingUpPostal.value = true
+  locateMsg.value = '郵便番号検索中…'
   try {
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=jp&limit=1`,
-      { headers: NOM_HEADERS },
-    )
+    const res = await fetch(`https://zipcloud.ibsnet.co.jp/api/search?zipcode=${code}`)
+    if (!res.ok) throw new Error('lookup failed')
     const data = await res.json()
-    if (data.length > 0) {
-      form.value.lat = parseFloat(data[0].lat)
-      form.value.lng = parseFloat(data[0].lon)
-      locateMsg.value = '地址定位成功'
-    } else {
-      locateMsg.value = '找不到該地址，請確認後重試'
+    if (!data.results || data.results.length === 0) {
+      locateMsg.value = '該当する住所が見つかりません'
+      return
     }
+    const r = data.results[0]
+    const pref = r.address1 ?? ''
+    const city = r.address2 ?? ''
+    const town = r.address3 ?? ''
+    if (pref && prefectures.includes(pref)) form.value.prefecture = pref
+    if (city) form.value.city = city
+    if (town) form.value.address = town
+    locateMsg.value = '住所を自動入力しました'
   } catch {
-    locateMsg.value = '搜尋失敗，請稍後再試'
+    locateMsg.value = '郵便番号の検索に失敗しました'
   } finally {
-    geocoding.value = false
+    lookingUpPostal.value = false
   }
 }
 
-/** Called when user clicks the map to pick a position */
-function onMapPick(lat: number, lng: number) {
-  form.value.lat = lat
-  form.value.lng = lng
-  locateMsg.value = `已選定位置 (${lat.toFixed(5)}, ${lng.toFixed(5)})`
-}
-
-// Auto-detect on mount
-onMounted(() => { detectLocation() })
 
 const prefectures = [
-  '東京都', '大阪府', '京都府', '神奈川県', '福岡県',
-  '北海道', '愛知県', '兵庫県', '奈良県', '沖縄県',
-  '埼玉県', '千葉県', '茨城県', '栃木県', '群馬県',
-  '新潟県', '長野県', '静岡県', '広島県', '宮城県',
+  '北海道',
+  '青森県', '岩手県', '宮城県', '秋田県', '山形県', '福島県',
+  '茨城県', '栃木県', '群馬県', '埼玉県', '千葉県', '東京都', '神奈川県',
+  '新潟県', '富山県', '石川県', '福井県', '山梨県', '長野県',
+  '岐阜県', '静岡県', '愛知県',
+  '三重県', '滋賀県', '京都府', '大阪府', '兵庫県', '奈良県', '和歌山県',
+  '鳥取県', '島根県', '岡山県', '広島県', '山口県',
+  '徳島県', '香川県', '愛媛県', '高知県',
+  '福岡県', '佐賀県', '長崎県', '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県',
 ]
 
 const suggestedTags = computed(() =>
@@ -279,7 +306,7 @@ async function handleSubmit() {
               <polyline points="15 18 9 12 15 6"/>
             </svg>
           </button>
-          <span class="font-mincho text-base font-semibold text-sumi">新增店舖</span>
+          <span class="font-mincho text-base font-semibold text-sumi">新增探訪</span>
         </div>
         <button
           class="px-4 py-1.5 rounded-full text-xs font-medium text-white
@@ -368,105 +395,124 @@ async function handleSubmit() {
 
       <!-- 地點 & 分類 -->
       <section>
-        <p class="text-[11px] text-stone-400 uppercase tracking-widest mb-3">地點 & 分類</p>
+        <p class="text-[11px] text-stone-400 uppercase tracking-widest mb-3">地點</p>
 
-        <!-- Location card (顺丰 style) -->
-        <div class="bg-white rounded-2xl border border-sakura-50 shadow-sm overflow-hidden divide-y divide-stone-50 mb-4">
+        <!-- Location card wrapper: relative so suggestions can position against it -->
+        <div class="relative mb-4">
+          <div class="bg-white rounded-2xl border border-sakura-50 shadow-sm overflow-hidden divide-y divide-stone-50">
 
-          <!-- Auto-locate row -->
-          <div class="flex items-center justify-between px-4 py-3">
-            <div class="flex items-center gap-2">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#E57696" stroke-width="2" stroke-linecap="round">
-                <circle cx="12" cy="10" r="3"/><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-              </svg>
-              <span class="text-xs text-stone-500 leading-snug">
-                <template v-if="locating">
-                  <span class="text-sakura-400">定位中…</span>
-                </template>
-                <template v-else-if="locateMsg">{{ locateMsg }}</template>
-                <template v-else>點擊右側自動定位</template>
-              </span>
-            </div>
-            <button
-              type="button"
-              class="text-xs px-3 py-1 rounded-full border border-sakura-200 text-sakura-500
-                     hover:bg-sakura-50 transition-colors disabled:opacity-40 shrink-0"
-              :disabled="locating"
-              @click="detectLocation"
-            >
-              <span v-if="locating" class="flex items-center gap-1">
-                <svg class="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <!-- Postal code lookup -->
+            <div class="px-4 py-3 flex items-start gap-2">
+              <div class="flex-1">
+                <label class="text-[10px] text-stone-400 tracking-wide block mb-1">郵便番号</label>
+                <input
+                  v-model="form.postalCode"
+                  type="text"
+                  inputmode="numeric"
+                  placeholder="例：1500043"
+                  maxlength="8"
+                  class="w-full text-sm text-sumi bg-transparent outline-none placeholder-stone-300"
+                  @keydown.enter.prevent="lookupPostalCode"
+                />
+                <p v-if="locateMsg" class="text-[10px] mt-1" :class="locateMsg.includes('失敗') || locateMsg.includes('見つかり') ? 'text-red-400' : 'text-sakura-400'">
+                  {{ locateMsg }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="shrink-0 mt-5 w-8 h-8 rounded-full bg-sakura-50 border border-sakura-200
+                       flex items-center justify-center text-sakura-400
+                       hover:bg-sakura-100 transition-colors disabled:opacity-40"
+                :disabled="lookingUpPostal"
+                aria-label="郵便番号検索"
+                @click="lookupPostalCode"
+              >
+                <svg v-if="lookingUpPostal" class="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
                 </svg>
-                定位中
-              </span>
-              <span v-else>📍 重新定位</span>
-            </button>
-          </div>
-
-          <!-- Prefecture + city -->
-          <div class="flex divide-x divide-stone-50">
-            <div class="flex-1 px-4 py-3">
-              <label class="text-[10px] text-stone-400 tracking-wide block mb-1">都道府縣</label>
-              <select
-                v-model="form.prefecture"
-                class="w-full text-sm text-sumi bg-transparent outline-none"
-              >
-                <option value="" disabled>請選擇</option>
-                <option v-for="p in prefectures" :key="p" :value="p">{{ p }}</option>
-              </select>
+                <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
+                </svg>
+              </button>
             </div>
-            <div class="flex-1 px-4 py-3">
-              <label class="text-[10px] text-stone-400 tracking-wide block mb-1">城市 / 區</label>
-              <input
-                v-model="form.city"
-                type="text"
-                placeholder="如：渋谷区"
-                class="w-full text-sm text-sumi bg-transparent outline-none placeholder-stone-300"
-              />
-            </div>
-          </div>
 
-          <!-- Detailed address + geocode button -->
-          <div class="px-4 py-3 flex items-center gap-2">
-            <div class="flex-1">
+            <!-- Prefecture + city -->
+            <div class="flex divide-x divide-stone-50">
+              <div class="flex-1 px-4 py-3">
+                <label class="text-[10px] text-stone-400 tracking-wide block mb-1">都道府縣</label>
+                <select
+                  v-model="form.prefecture"
+                  class="w-full text-sm text-sumi bg-transparent outline-none"
+                >
+                  <option value="" disabled>請選擇</option>
+                  <option v-for="p in prefectures" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+              <div class="flex-1 px-4 py-3">
+                <label class="text-[10px] text-stone-400 tracking-wide block mb-1">城市 / 區</label>
+                <input
+                  v-model="form.city"
+                  type="text"
+                  placeholder="如：渋谷区"
+                  class="w-full text-sm text-sumi bg-transparent outline-none placeholder-stone-300"
+                />
+              </div>
+            </div>
+
+            <!-- Detailed address: explicit :value + @input, no v-model -->
+            <div class="px-4 py-3">
               <label class="text-[10px] text-stone-400 tracking-wide block mb-1">詳細地址</label>
-              <input
-                v-model="form.address"
-                type="text"
-                placeholder="如：道玄坂1-2-3 渋谷ヒカリエ10F（選填）"
-                class="w-full text-sm text-sumi bg-transparent outline-none placeholder-stone-300"
-                @keydown.enter.prevent="geocodeAddress"
-              />
+              <div class="flex items-center gap-1">
+                <input
+                  :value="form.address"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="如：道玄坂1-2-3（輸入可搜尋地址）"
+                  class="w-full text-sm text-sumi bg-transparent outline-none placeholder-stone-300"
+                  @input="onAddressInput"
+                />
+                <svg v-if="addressLoading" class="animate-spin shrink-0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E57696" stroke-width="2.5">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
+                </svg>
+              </div>
             </div>
+          </div>
+
+          <!-- Suggestions dropdown: outside overflow-hidden, positioned absolutely -->
+          <div
+            v-if="showSuggestions && addressSuggestions.length > 0"
+            class="absolute left-0 right-0 top-full mt-1 z-[100]
+                   bg-white rounded-2xl border border-sakura-100 shadow-xl overflow-hidden"
+          >
             <button
+              v-for="s in addressSuggestions"
+              :key="s.display_name"
               type="button"
-              class="shrink-0 mt-4 w-8 h-8 rounded-full bg-sakura-50 border border-sakura-200
-                     flex items-center justify-center text-sakura-400
-                     hover:bg-sakura-100 transition-colors disabled:opacity-40"
-              :disabled="geocoding"
-              aria-label="搜尋地址"
-              @click="geocodeAddress"
+              class="w-full px-4 py-3 text-left active:bg-sakura-50 transition-colors border-b border-stone-50 last:border-0"
+              @click="selectSuggestion(s)"
             >
-              <svg v-if="geocoding" class="animate-spin" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
-              </svg>
-              <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/>
-              </svg>
+              <p class="text-xs text-sumi font-medium truncate">{{ s.display_name.split(',')[0].trim() }}</p>
+              <p class="text-[10px] text-stone-400 truncate mt-0.5">{{ s.display_name.split(',').slice(1, 4).join(',') }}</p>
             </button>
           </div>
         </div>
 
-        <!-- Map: pickable pin -->
+        <!-- Overlay: closes suggestions when tapping outside (teleported to avoid stacking issues) -->
+        <Teleport to="body">
+          <div
+            v-if="showSuggestions"
+            class="fixed inset-0 z-[90]"
+            @click="showSuggestions = false"
+            @touchstart.passive="showSuggestions = false"
+          />
+        </Teleport>
+
+        <!-- Map: view only -->
         <ShopMap
           :lat="form.lat"
           :lng="form.lng"
-          name="新店舖位置"
-          :pickable="true"
-          @pick="onMapPick"
+          name="新增探訪位置"
         />
-        <p class="text-[10px] text-stone-400 mt-1.5 text-center">可點擊地圖精確調整位置</p>
 
         <!-- Category grid -->
         <p class="text-xs text-stone-400 mb-2 mt-5">店舖類別</p>
