@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>履歴書・職務経歴書 - Cygames フロントエンドエンジニア応募 - YI LI</title>
+<style>
+  :root{
+    --ink:#1a1d24;
+    --sub:#5b6270;
+    --line:#d8dde6;
+    --accent:#0e7c86;      /* Cygames を意識した落ち着いたティール */
+    --accent-soft:#e8f4f5;
+    --bg:#f4f6f9;
+    --paper:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Meiryo","Noto Sans JP",sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+    line-height:1.7;
+    font-size:13.5px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .page{
+    background:var(--paper);
+    width:210mm;
+    min-height:297mm;
+    margin:16px auto;
+    padding:18mm 16mm;
+    box-shadow:0 6px 28px rgba(20,30,50,.12);
+    position:relative;
+  }
+  /* ---------- 共通見出し ---------- */
+  h1.doc-title{
+    font-size:22px;
+    letter-spacing:.5em;
+    text-align:center;
+    margin:0 0 4px;
+    font-weight:700;
+  }
+  .doc-date{
+    text-align:right;
+    color:var(--sub);
+    font-size:12px;
+    margin:0 0 14px;
+  }
+  h2.sec{
+    font-size:15px;
+    font-weight:700;
+    color:var(--accent);
+    border-left:5px solid var(--accent);
+    padding:2px 0 2px 10px;
+    margin:22px 0 10px;
+    background:linear-gradient(90deg,var(--accent-soft),transparent);
+  }
+  h3.sub{
+    font-size:13.5px;
+    font-weight:700;
+    margin:16px 0 6px;
+    padding-bottom:3px;
+    border-bottom:2px dotted var(--line);
+  }
+  p{margin:6px 0;}
+  .muted{color:var(--sub);}
+  .small{font-size:12px;}
+  /* ---------- テーブル ---------- */
+  table{width:100%;border-collapse:collapse;margin:6px 0;}
+  .info-table td,.info-table th{
+    border:1px solid var(--line);
+    padding:6px 9px;
+    vertical-align:top;
+    font-size:12.5px;
+  }
+  .info-table th{
+    background:#f0f3f7;
+    text-align:left;
+    white-space:nowrap;
+    font-weight:600;
+    width:120px;
+  }
+  .hist-table td{
+    border:1px solid var(--line);
+    padding:5px 8px;
+    font-size:12.5px;
+    vertical-align:top;
+  }
+  .hist-table .y{width:54px;text-align:center;white-space:nowrap;}
+  .hist-table .m{width:36px;text-align:center;white-space:nowrap;}
+  .hist-table .center-head td{
+    text-align:center;font-weight:700;background:#f0f3f7;letter-spacing:.3em;
+  }
+  .right{text-align:right;}
+  /* ---------- 志望動機 / PR ボックス ---------- */
+  .highlight{
+    background:var(--accent-soft);
+    border:1px solid #bfe2e5;
+    border-radius:8px;
+    padding:14px 16px;
+    margin:10px 0;
+  }
+  .highlight p{margin:8px 0;}
+  /* ---------- スキル ---------- */
+  .skill-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .skill-card{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px 12px;
+  }
+  .skill-card h4{margin:0 0 6px;font-size:12.5px;color:var(--accent);}
+  .skill-card ul{margin:0;padding-left:18px;}
+  .skill-card li{font-size:12px;margin:2px 0;}
+  .tag{
+    display:inline-block;
+    background:#fff;
+    border:1px solid var(--accent);
+    color:var(--accent);
+    border-radius:999px;
+    padding:1px 9px;
+    font-size:11px;
+    margin:2px 3px 2px 0;
+    white-space:nowrap;
+  }
+  .tag.match{background:var(--accent);color:#fff;}
+  .legend{font-size:11px;color:var(--sub);margin:6px 0 0;}
+  /* ---------- 職務経歴詳細カード ---------- */
+  .job{
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    margin:12px 0;
+    break-inside:avoid;
+  }
+  .job h3{
+    margin:0 0 8px;font-size:13.5px;color:var(--ink);
+    border:0;display:flex;align-items:center;gap:8px;
+  }
+  .job .no{
+    background:var(--accent);color:#fff;border-radius:5px;
+    font-size:11px;padding:2px 7px;white-space:nowrap;
+  }
+  .job table{margin:0;}
+  .job td{border:0;padding:3px 6px;font-size:12px;vertical-align:top;}
+  .job td.k{width:96px;color:var(--sub);white-space:nowrap;}
+  .job ul{margin:3px 0;padding-left:17px;}
+  .job li{font-size:12px;margin:2px 0;}
+  .stack{font-size:11.5px;color:#333;}
+  /* ---------- フッター ---------- */
+  .pr-table td{border:1px solid var(--line);padding:8px 10px;font-size:12.5px;vertical-align:top;}
+  .pr-table td.k{width:140px;background:#f0f3f7;font-weight:600;white-space:nowrap;}
+  .end{text-align:right;margin-top:8px;color:var(--sub);}
+  .pagebreak{page-break-before:always;}
+  /* ---------- 印刷 ---------- */
+  @media print{
+    body{background:#fff;font-size:11pt;}
+    .page{box-shadow:none;margin:0;width:auto;min-height:auto;padding:14mm 14mm;}
+    h2.sec{background:none;}
+    .no-print{display:none;}
+    @page{size:A4;margin:0;}
+  }
+  .toolbar{
+    position:fixed;top:14px;right:14px;z-index:50;
+    background:var(--ink);color:#fff;border:0;border-radius:8px;
+    padding:9px 14px;font-size:13px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+</style>
+</head>
+<body>
+
+<button class="toolbar no-print" onclick="window.print()">🖨 PDFとして保存 / 印刷</button>
+
+<!-- ============================================================ -->
+<!-- 履歴書 -->
+<!-- ============================================================ -->
+<section class="page">
+  <h1 class="doc-title">履　歴　書</h1>
+  <p class="doc-date">2026年6月4日現在</p>
+
+  <h2 class="sec">基本情報</h2>
+  <table class="info-table">
+    <tr>
+      <th>氏名</th>
+      <td>YI LI（フリガナ：イ レキ）</td>
+      <th>性別</th>
+      <td>男</td>
+    </tr>
+    <tr>
+      <th>生年月日</th>
+      <td>1987年（昭和62年）11月9日生（満38歳）</td>
+      <th>国籍</th>
+      <td>中国</td>
+    </tr>
+    <tr>
+      <th>配偶者</th>
+      <td>無</td>
+      <th>扶養家族</th>
+      <td>0人（配偶者を除く）</td>
+    </tr>
+    <tr>
+      <th>現住所</th>
+      <td colspan="3">〒558-0004　大阪府大阪市住吉区ビラ長居<br><span class="small muted">フリガナ：オオサカフ オオサカシ スミヨシク ビラ ナガイ</span></td>
+    </tr>
+    <tr>
+      <th>連絡先</th>
+      <td colspan="3">TEL：080-8396-4535　／　E-mail：shinichi19871109@gmail.com<br>GitHub：https://github.com/GTXY?tab=repositories</td>
+    </tr>
+    <tr>
+      <th>在留資格</th>
+      <td colspan="3">現在：短期滞在（就労ビザ取得後の入社を希望）</td>
+    </tr>
+  </table>
+
+  <h2 class="sec">学歴・職歴</h2>
+  <table class="hist-table">
+    <tr class="center-head"><td colspan="3">学　歴</td></tr>
+    <tr><td class="y">2003</td><td class="m">9</td><td>江蘇省太倉市高級中学　入学</td></tr>
+    <tr><td class="y">2006</td><td class="m">6</td><td>江蘇省太倉市高級中学　卒業</td></tr>
+    <tr><td class="y">2006</td><td class="m">9</td><td>南京情報職業技術学院　電子情報工程技術専攻　入学</td></tr>
+    <tr><td class="y">2009</td><td class="m">6</td><td>南京情報職業技術学院　電子情報工程技術専攻　卒業（全日制大専・短期大学相当）</td></tr>
+
+    <tr class="center-head"><td colspan="3">職　歴</td></tr>
+    <tr><td class="y">2010</td><td class="m">12</td><td>軟通動力情報技術有限公司（南京）　入社　／　Webエンジニア</td></tr>
+    <tr><td class="y">2012</td><td class="m">9</td><td>同社　一身上の都合により退社</td></tr>
+    <tr><td class="y">2012</td><td class="m">12</td><td>海実信息技術有限公司（上海）　入社　／　派遣先：平安科技有限公司　Webエンジニア</td></tr>
+    <tr><td class="y">2014</td><td class="m">5</td><td>派遣先変更：平安金融科技有限公司　フロントエンドエンジニア</td></tr>
+    <tr><td class="y">2014</td><td class="m">11</td><td>同社 退社（派遣先である平安金融科技有限公司より正社員登用のため）</td></tr>
+    <tr><td class="y">2014</td><td class="m">11</td><td>平安金融科技有限公司（上海）　入社　／　フロントエンドエンジニア</td></tr>
+    <tr><td class="y">2015</td><td class="m">6</td><td>同社　一身上の都合により退社</td></tr>
+    <tr><td class="y">2015</td><td class="m">6</td><td>分期秀信息技術有限公司　入社　／　フロントエンドエンジニア</td></tr>
+    <tr><td class="y">2017</td><td class="m">12</td><td>同社　退社（事業縮小のため）</td></tr>
+    <tr><td class="y">2018</td><td class="m">3</td><td>易誠互動網絡技術有限公司　入社　／　派遣先：蘇州銀行股份有限公司</td></tr>
+    <tr><td class="y">2023</td><td class="m">12</td><td>同社　一身上の都合により退社</td></tr>
+    <tr><td class="y">2024</td><td class="m">1</td><td>海証期貨有限公司（上海）　業務委託として参画　／　フロントエンドエンジニア・UIデザイナー</td></tr>
+    <tr><td class="y">2025</td><td class="m">4</td><td>同社　契約満了により終了</td></tr>
+    <tr><td class="y">2025</td><td class="m">5</td><td>日本語学習および AI 技術の自己研鑽期間</td></tr>
+    <tr><td class="y"></td><td class="m"></td><td class="right">以　上</td></tr>
+  </table>
+
+  <h2 class="sec">免許・資格</h2>
+  <table class="hist-table">
+    <tr><td class="y">2010</td><td class="m">9</td><td>中華人民共和国 自動車運転免許 C1（普通自動車一種相当）取得</td></tr>
+    <tr><td class="y">2025</td><td class="m">12</td><td>日本語能力試験 JLPT N2 合格（142点）</td></tr>
+    <tr><td class="y">現在</td><td class="m"></td><td>JLPT N1 受験準備中</td></tr>
+    <tr><td class="y"></td><td class="m"></td><td class="right">以　上</td></tr>
+  </table>
+
+  <h2 class="sec">本人希望記入欄</h2>
+  <table class="info-table">
+    <tr><th>希望職種</th><td>フロントエンドエンジニア（Webブラウザゲーム・Webサービス・Webサイト制作）</td></tr>
+    <tr><th>志望動機</th><td>幼少期のファミコンから現在の PS5・Nintendo Switch 2 まで、人生を通してゲームに親しんできました。中でも貴社の『グランブルーファンタジー』『プリンセスコネクト！Re:Dive』、家庭用機の『グランブルーファンタジー リリンク』を長年プレイし続けており、作品への深い愛着があります。これまで培った Web・フロントエンドの技術を、貴社が掲げる「最高のコンテンツ」づくりに活かしたく志望いたしました。（詳細は職務経歴書に記載）</td></tr>
+    <tr><th>勤務形態</th><td>正社員</td></tr>
+    <tr><th>勤務地</th><td>東京を希望いたします（渋谷／目黒いずれも可。大阪より転居可能です）</td></tr>
+    <tr><th>希望年収</th><td>550万〜650万円（応相談・御社規定に従います）</td></tr>
+    <tr><th>入社可能日</th><td>就労ビザ取得完了後、可能な限り早期入社（応相談）</td></tr>
+  </table>
+
+  <h2 class="sec">趣味・特技・語学</h2>
+  <table class="info-table">
+    <tr><th>趣味</th><td>ゲーム（FC・スーパーファミコン世代から PS5・Nintendo Switch 2 まで、家庭用・ブラウザ・スマートフォン問わず幅広くプレイ）／アニメ鑑賞／AI 技術研究／旅行・ドライブ</td></tr>
+    <tr><th>特技</th><td>要件を整理すること、数字を確認しながら考えること、UI・演出など細部のクオリティにこだわること、AI ツールを用いた高速プロトタイピング</td></tr>
+    <tr><th>語学</th><td>中国語：母語<br>日本語：JLPT N2 合格、日常会話レベル（ビジネス日本語を学習中、N1 受験準備中）<br>英語：技術ドキュメント・コードコメントの読解可能（基本レベル）</td></tr>
+  </table>
+
+  <p class="end">上記の通り相違ありません。　氏名：YI LI　　印</p>
+</section>
+
+<!-- ============================================================ -->
+<!-- 職務経歴書 -->
+<!-- ============================================================ -->
+<section class="page pagebreak">
+  <h1 class="doc-title">職　務　経　歴　書</h1>
+  <p class="doc-date">2026年6月4日現在　／　氏名：YI LI（イ レキ）</p>
+
+  <!-- 志望動機（このポジション向けに最適化） -->
+  <h2 class="sec">志望動機</h2>
+  <div class="highlight">
+    <p>貴社の<strong>フロントエンドエンジニア（東京）</strong>の募集要項を拝見し、「Webブラウザゲームの運用・開発」「Webサービスの運用・開発」「Webサイト制作」という業務内容が、私がこれまで歩んできたキャリアと強く重なると感じ、志望いたしました。私は 12 年以上にわたり Web・フロントエンド開発に携わり、近年は <strong>Vue 3 / Nuxt（Vite）/ TypeScript / Tailwind CSS / GitHub</strong> を用いた開発を行っており、貴社の開発環境と多くが共通しています。</p>
+    <p>加えて私は、幼少期のファミコンから現在の PlayStation 5・Nintendo Switch 2 まで、人生を通してゲームに親しんできた一人のユーザーです。中でも貴社の『グランブルーファンタジー』『プリンセスコネクト！Re:Dive』、家庭用機の『グランブルーファンタジー リリンク』を長年プレイし続けてきました。特に『グランブルーファンタジー』は<strong>ブラウザベースのタイトル</strong>であり、私の Web・フロントエンド技術が、貴社が手がける Web ブラウザゲームづくりに直接活かせると確信しています。</p>
+    <p>貴社のミッションステートメントである<strong>「みんなでたくさんゲームをやる」</strong>に心から共感しております。一人のユーザーとして数えきれない感動を受け取ってきた立場から、今度は「チーム・サイゲームス」の一員として、世界中のユーザーへ最高の体験を届ける側に回りたいと強く願い、志望いたしました。</p>
+  </div>
+
+  <!-- 職務要約 -->
+  <h2 class="sec">職務要約</h2>
+  <p>2010年12月より IT 業界で働き、Web エンジニア／フロントエンドエンジニアとして 12 年以上の実務経験があります。金融、銀行、スタートアップ、O2O サービス、業務系管理システムなど、複数の現場で画面開発、UI 調整、API 結合、テスト対応を行ってきました。</p>
+  <p>キャリア初期は Java + JSP による Web 開発を担当し、その後は jQuery / Backbone.js、Vue 2 などを使ったフロントエンド開発を中心に経験してきました。蘇州銀行の案件では、2〜3 名のフロントエンドチームで要件分割・担当割り振り・工数確認・技術相談対応を行い、採用面接への参加や新メンバーへの業務説明・技術サポートも担当しました。現場では PM・UI デザイナー・バックエンド・QA と相談しながら、仕様確認から実装、結合試験まで責任を持って進めることを大切にしています。</p>
+  <p>最近は個人開発で Vue 3 / Vite / Pinia / TypeScript / Tailwind CSS や Cursor + Claude などの AI ツールを使い、プロダクトの設計・実装・運用までを一人で行っています。これまでの開発経験を活かしつつ、長年憧れてきたゲーム・エンターテインメント業界で、ユーザーに喜ばれるコンテンツづくりに丁寧に取り組んでいきたいと考えています。</p>
+
+  <!-- スキルマッチ -->
+  <h2 class="sec">活かせる経験・知識・技術</h2>
+  <p class="small muted">※ <span class="tag match">塗りつぶし</span> は貴社募集要項に記載の技術スタックと合致する項目です。</p>
+  <p>
+    <span class="tag match">HTML5</span><span class="tag match">CSS3</span><span class="tag match">JavaScript(ES6+)</span><span class="tag match">TypeScript</span>
+    <span class="tag match">Vue 2 / Vue 3</span><span class="tag match">Nuxt.js</span><span class="tag match">Tailwind CSS</span><span class="tag match">GitHub / Git</span>
+    <span class="tag">Pinia / Vuex</span><span class="tag">Vite / Webpack</span><span class="tag">Element UI / iView / Vant</span><span class="tag">Echarts</span>
+    <span class="tag">MySQL</span><span class="tag">GCP</span><span class="tag">Less</span><span class="tag">jQuery / Backbone.js</span><span class="tag">Java / JSP</span>
+  </p>
+
+  <div class="skill-grid">
+    <div class="skill-card">
+      <h4>言語・フレームワーク</h4>
+      <ul>
+        <li>言語：HTML5 / CSS3 / JavaScript（ES6+）/ TypeScript</li>
+        <li>フレームワーク：Vue 2 / Vue 3 / Nuxt</li>
+        <li>状態管理：Pinia / Vuex</li>
+        <li>UI・CSS：Tailwind CSS / Element UI / iView / Vant / Bootstrap</li>
+        <li>可視化：Echarts</li>
+        <li>レガシー：jQuery / Backbone.js / Java / JSP（キャリア初期）</li>
+      </ul>
+    </div>
+    <div class="skill-card">
+      <h4>開発ツール・環境</h4>
+      <ul>
+        <li>ビルド：Vite / Webpack　／　パッケージ管理：npm</li>
+        <li>CSS プリプロセッサ：Less</li>
+        <li>ソース管理：GitHub / Git / SVN</li>
+        <li>DB / クラウド：MySQL / GCP（個人プロジェクトで運用）</li>
+        <li>AI 開発：Cursor + Claude / ChatGPT</li>
+        <li>デザイン：Photoshop / MockPlus</li>
+      </ul>
+    </div>
+    <div class="skill-card">
+      <h4>業務・ドメイン経験</h4>
+      <ul>
+        <li>金融（銀行・ファンド・期貨）／フィンテック（決済連携）</li>
+        <li>EC・分割払いプラットフォーム</li>
+        <li>O2O サービス（葬祭、スマートパーキング）</li>
+        <li>業務系管理システム・バックオフィス</li>
+      </ul>
+    </div>
+    <div class="skill-card">
+      <h4>今後さらに伸ばしたい領域（学習中）</h4>
+      <ul>
+        <li>React / Next.js・Svelte / SvelteKit（Vue/Nuxt の知見を土台に習得中）</li>
+        <li>PHP（Laravel / FuelPHP）・AWS / Docker</li>
+        <li>CMS（WordPress / microCMS）</li>
+        <li class="muted">AI ツールも活用し、入社後速やかにキャッチアップする所存です。</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- 自己PR -->
+  <h2 class="sec">自己PR</h2>
+  <table class="pr-table">
+    <tr><td class="k">開発経験</td><td>長く Web 開発に関わってきたため、新規画面の実装だけでなく、既存コードの修正や不具合対応も落ち着いて進められます。まず仕様を確認し、影響範囲を考えてから作業します。</td></tr>
+    <tr><td class="k">チーム連携</td><td>PM・UI デザイナー・バックエンド・QA とやり取りしながら開発することが多く、分からない点を放置せず、早めに確認して認識を合わせることを大切にしています。「チーム・サイゲームス」の考え方に通じると感じています。</td></tr>
+    <tr><td class="k">問題対応</td><td>レガシーな jQuery 案件から Vue を用いた SPA まで経験しているため、問題発生時も原因を切り分け、現実的な解決方法を探します。</td></tr>
+    <tr><td class="k">プロダクト理解</td><td>フロントエンドだけでなく、UI、バックエンドとの API 連携、テスト、リリース対応にも関わってきました。利用者・運用側の視点も意識します。</td></tr>
+    <tr><td class="k">AI 活用による生産性向上</td><td>Cursor + Claude などの AI ツールを設計整理・コード作成・調査・確認に活用しています。任せきりにせず、自分で内容を確認しながら速く正確に進める道具として使っています。</td></tr>
+    <tr><td class="k">コンテンツへのこだわり</td><td>長年の一ゲームユーザーとしての経験から、UI の操作感や演出のわずかな違いが体験全体を大きく左右することを実感してきました。実装でも「動けばよい」ではなく、利用者が心地よく感じられるか、細部まで丁寧に作り込めているかを常に意識しています。貴社の「最高のコンテンツ」という理念に強く共感し、技術面だけでなく品質面でも貢献したいと考えています。</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ -->
+<!-- 職務経歴詳細 -->
+<!-- ============================================================ -->
+<section class="page pagebreak">
+  <h2 class="sec">職務経歴詳細（新しい順）</h2>
+
+  <div class="job">
+    <h3><span class="no">個人①</span>桜探記（さくらたんき）</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2026年3月 〜 2026年4月　／　役割：プロダクトエンジニア（企画・設計・実装・運用）　／　チーム：1名（自身）</td></tr>
+      <tr><td class="k">概要</td><td>日本旅行の見聞を記録する Web サービス。写真をアップロードしレビューを投稿することで、訪問した場所を記録できる。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>プロダクト機能設計・画面設計・技術選定</li><li>AI（Cursor + Claude）を用いた業務ロジック実装</li><li>結合テスト・パフォーマンス確認・細部の調整</li><li>GCP へのデプロイおよび運用</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript / TypeScript / Python ｜ Vue 3 / Pinia / Tailwind CSS ｜ Vite / npm ｜ MySQL / GCP ｜ Git / Cursor + Claude</td></tr>
+      <tr><td class="k">URL</td><td class="small">公開：https://www.kudou-shinichi.cn/Sakura/　／　GitHub：https://github.com/GTXY/Sakura</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">個人②</span>Goros 商品アグリゲーター</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2026年3月 〜 2026年4月　／　役割：プロダクトエンジニア　／　チーム：1名（自身）</td></tr>
+      <tr><td class="k">概要</td><td>Goros の主要オンライン販売チャネルの商品情報を集約し、毎日午前3時に自動更新を行い、在庫状況と新商品入荷を確認できるサービス。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>プロダクト機能設計・画面設計・技術選定</li><li>AI（Cursor + Claude）を用いた業務ロジック実装</li><li>スクレイピング・定時バッチ処理の設計と実装</li><li>結合テスト・動作確認・運用監視</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript / TypeScript / Python ｜ Vue 3 / Pinia / Tailwind CSS ｜ Vite / npm ｜ MySQL / GCP ｜ Git / Cursor + Claude</td></tr>
+      <tr><td class="k">URL</td><td class="small">公開：https://www.kudou-shinichi.cn/Goros/　／　GitHub：https://github.com/GTXY/Goros</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.3</span>懂私募（私募ファンド分析プラットフォーム）</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2024年1月 〜 2025年4月　／　海証期貨有限公司（上海）・業務委託常駐／イノベーション部門</td></tr>
+      <tr><td class="k">役割</td><td>フロントエンドエンジニア 兼 UIデザイナー　／　チーム：運営1・プロダクト1・FE兼UI 1（自身）・BE1・QA2（計6名）</td></tr>
+      <tr><td class="k">概要</td><td>中国国内すべての私募ファンド商品情報を収集し、各種チャートとして可視化。デューデリジェンス・レポート登録機能、長尺画像形式の週次レポート生成機能も提供。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>クライアント側／管理画面側の画面設計・UIデザイン</li><li>フロントエンド実装、バックエンドとの API 結合試験</li><li>Echarts を用いたデータ可視化コンポーネントの設計と実装</li><li>QA との連携、本番リリース対応</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript ｜ Vue 2 / Vuex ｜ Element UI / iView / Echarts ｜ Less ｜ Webpack / npm ｜ Git / ChatGPT / Photoshop</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.4</span>智慧停車（スマートパーキング連携サービス）</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2018年3月 〜 2023年12月　／　易誠互動網絡技術有限公司・派遣先：蘇州銀行股份有限公司／科技部門</td></tr>
+      <tr><td class="k">役割</td><td>フロントエンドエンジニア　／　チーム：PM1・FE2・BE1（計4名）</td></tr>
+      <tr><td class="k">概要</td><td>蘇州市の一部駐車場のナンバープレート認識システムと連携し、利用者の銀行カードと紐付けることで、出庫時に自動決済・自動ゲート開放を実現。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>フロントエンド業務モジュールの分割と要件アサイン</li><li>フロントエンド実装、バックエンドとの API 結合試験</li><li>テスト・本番リリース対応</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript ｜ Vue 2 / Vuex ｜ Vant ｜ Less ｜ Webpack / npm ｜ SVN</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.5</span>小蘇智聯 バックオフィス管理システム</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2019年5月 〜 2023年12月　／　易誠互動網絡技術有限公司・派遣先：蘇州銀行／科技部門</td></tr>
+      <tr><td class="k">役割</td><td>フロントエンドエンジニア　／　チーム：PM1・FE3・BE4（計8名）</td></tr>
+      <tr><td class="k">概要</td><td>蘇州銀行「小蘇智聯」プロジェクト群すべてのデータを統合管理するバックオフィスシステム。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>業務モジュールの分割、詳細設計から実装までの要件アサイン</li><li>新人エンジニアのオンボーディング・技術教育・メンター業務</li><li>チーム内タスク管理（進捗管理）と開発段階での業務配分</li><li>メンバーの技術課題のヒアリングと解決サポート</li><li>FE 実装、BE との API 結合試験、テスト、本番リリース対応</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript ｜ jQuery / Bootstrap ｜ SVN</td></tr>
+      <tr><td class="k">補足</td><td class="small muted">上記2件以外にも複数の小規模プロジェクトを並行担当し、優先順位を確認しながら対応していました。</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.6</span>逝念（オンライン葬祭サービス）※兼業</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2019年1月 〜 2020年3月（蘇州銀行案件と並行）　／　逝念科技有限公司／技術部門</td></tr>
+      <tr><td class="k">役割</td><td>PM 兼 プロダクトマネージャー 兼 UIデザイナー 兼 フロントエンドエンジニア　／　チーム：自身1・BE2（計3名）</td></tr>
+      <tr><td class="k">概要</td><td>オフラインの葬祭サービス手続き（問い合わせ・商品/サービス比較・選定など）をオンライン化したサービス。</td></tr>
+      <tr><td class="k">担当</td><td><ul><li>フロントエンド画面実装、クライアント／BE との API 結合試験</li><li>UIデザイン補助、プロダクト要件の取りまとめ</li><li>立ち上げ期のため、要件定義から画面設計・実装・リリースまで幅広く担当</li></ul></td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML5 / CSS3 / JavaScript ｜ Vue 2 / Vuex ｜ Vant ｜ Less ｜ Webpack / npm ｜ Git / Photoshop / MockPlus</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.7</span>分期秀（学生向け分割払いECサイト）</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2015年6月 〜 2017年12月　／　分期秀信息技術有限公司・技術出資／技術部門</td></tr>
+      <tr><td class="k">役割</td><td>フロントエンドエンジニア　／　チーム：UI1・FE1（自身）・BE2（計4名）</td></tr>
+      <tr><td class="k">概要</td><td>大学生向けの分割払い EC サイト（PC・スマホ対応）および管理画面を含む公式サイト全体の構築。学生がオンライン注文、オフライン物流が大学正門まで直接配送するモデル。</td></tr>
+      <tr><td class="k">担当</td><td>フロントエンド画面実装、バックエンドとの API 結合試験、QA 対応</td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML / CSS / JavaScript ｜ jQuery / Backbone.js ｜ Webpack / npm ｜ SVN</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.8</span>平安金融科技 ポータルサイト</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2014年5月 〜 2015年6月　／　海実信息技術有限公司（派遣）→ 平安金融科技有限公司（正社員登用）／技術部門</td></tr>
+      <tr><td class="k">役割</td><td>フロントエンドエンジニア　／　チーム：PM1・プロダクト2・UI2・FE2（自身含む）・クライアント2・BE4（計13名）</td></tr>
+      <tr><td class="k">概要</td><td>平安金融科技の公式ポータルサイト。アプリ内に埋め込まれる WebView ページとして、各種情報表示と平安グループ各サービスへの遷移ハブを提供。</td></tr>
+      <tr><td class="k">担当</td><td>フロントエンド実装、iOS／Android ネイティブ・バックエンドとのインタフェース調整、結合試験</td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML / CSS / JavaScript ｜ jQuery / Backbone.js ｜ Webpack / npm ｜ SVN</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.9</span>平安科技 Web システム開発（派遣・複数PJ）</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2012年12月 〜 2014年5月　／　海実信息技術有限公司・派遣先：平安科技有限公司／技術部門</td></tr>
+      <tr><td class="k">役割</td><td>Web エンジニア（Java + JSP 一体型開発）</td></tr>
+      <tr><td class="k">概要</td><td>平安グループ各社向けの業務 Web システムの開発・保守。</td></tr>
+      <tr><td class="k">担当</td><td>FE/BE が完全分離する前の時代で、Java + JSP のサーバーサイドレンダリングを中心に、JavaScript / jQuery による画面処理、CSS によるスタイル調整まで担当。Web アプリ全体の流れを実務で習得。</td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML / CSS / JavaScript / Java / JSP ｜ jQuery ｜ SVN</td></tr>
+    </table>
+  </div>
+
+  <div class="job">
+    <h3><span class="no">No.10</span>軟通動力情報技術有限公司（南京）Web システム開発</h3>
+    <table>
+      <tr><td class="k">期間</td><td>2010年12月 〜 2012年9月　／　軟通動力情報技術有限公司（南京）／技術部門</td></tr>
+      <tr><td class="k">役割</td><td>Web エンジニア（Java + JSP 一体型開発）</td></tr>
+      <tr><td class="k">概要</td><td>新卒入社後、複数の顧客向けエンタープライズ Web システムの受託開発・保守に従事。</td></tr>
+      <tr><td class="k">担当</td><td>Java + JSP テンプレートによるサーバーサイドレンダリングを中心に、JavaScript / jQuery での画面処理、HTML / CSS による画面実装を担当。Web 開発の基礎、SQL/DB 連携、サーバーから画面までの流れを実務で習得。</td></tr>
+      <tr><td class="k">技術</td><td class="stack">HTML / CSS / JavaScript / Java / JSP ｜ jQuery ｜ SVN</td></tr>
+    </table>
+  </div>
+
+  <h2 class="sec">保有資格・語学</h2>
+  <table class="info-table">
+    <tr><th>JLPT N2</th><td>2025年12月 合格（142点）／ 現在 N1 受験準備中</td></tr>
+    <tr><th>自動車運転免許</th><td>中国 C1 取得済み（日本では切替手続きを予定）</td></tr>
+    <tr><th>中国語 / 英語</th><td>中国語：母語　／　英語：技術ドキュメント・コードコメント読解可能（基本レベル）</td></tr>
+  </table>
+
+  <p class="end">以　上</p>
+</section>
+
+</body>
+</html>
