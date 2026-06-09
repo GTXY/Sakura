@@ -1,16 +1,19 @@
-"""本地开发数据填充脚本（SQLite）"""
+"""生产环境数据填充脚本（读取 .env 中的 DATABASE_URL）
+
+用法（在服务器上执行）：
+    source .venv/bin/activate
+    python seed_prod.py
+"""
 import asyncio
 import uuid
 from datetime import date
 
-import bcrypt
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
-from app.models import Base, User, Shop, ShopPhoto
+from app.config import settings
+from app.models import Base, Shop, ShopPhoto
 
-DB_URL = "sqlite+aiosqlite:///./sakura_dev.db"
-
-engine = create_async_engine(DB_URL, connect_args={"check_same_thread": False})
+engine = create_async_engine(settings.database_url, echo=False)
 Session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -106,13 +109,6 @@ async def main():
         await conn.run_sync(Base.metadata.create_all)
 
     async with Session() as db:
-        # 用户
-        hashed = bcrypt.hashpw("56501109".encode(), bcrypt.gensalt()).decode()
-        user = User(id=uuid.uuid4(), username="kudo1109", hashed_password=hashed)
-        db.add(user)
-        await db.flush()
-
-        # 店铺（system default，user_id=None）
         for d in SHOPS_DATA:
             photos = d.pop("photos", [])
             shop = Shop(id=uuid.uuid4(), user_id=None, **d)
@@ -122,7 +118,7 @@ async def main():
                 db.add(ShopPhoto(id=uuid.uuid4(), shop_id=shop.id, url=url, sort_order=i))
 
         await db.commit()
-        print(f"✓ 插入用户 kudo1109 + {len(SHOPS_DATA)} 间店铺")
+        print(f"✓ 插入默认数据 {len(SHOPS_DATA)} 间店铺")
 
 
 asyncio.run(main())

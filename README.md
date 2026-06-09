@@ -40,7 +40,7 @@
 
 | 技术 | 说明 |
 |------|------|
-| FastAPI + Uvicorn | HTTP API（生产端口 8001，本地端口 8000） |
+| FastAPI + Uvicorn | HTTP API（统一端口 8001，Vite 代理转发） |
 | SQLAlchemy 2（async）+ asyncpg / aiomysql | ORM，本地 PostgreSQL，生产 MySQL |
 | Pydantic v2 | 请求/响应模型（JSON 字段驼峰） |
 | python-jose + bcrypt | JWT 签发与密码哈希（bcrypt 直接调用，不依赖 passlib） |
@@ -123,6 +123,8 @@ cp .env.example .env   # 填写实际值
 uvicorn app.main:app --reload --port 8001
 ```
 
+> Vite 开发代理统一指向 `http://localhost:8001`，本地与生产端口一致。
+
 ### 创建用户
 
 ```bash
@@ -184,10 +186,22 @@ sudo nginx -t && sudo nginx -s reload
 ### 首次创建用户
 
 ```bash
-cd /var/www/sakura/backend
+cd /www/wwwroot/Sakura/backend
 source .venv/bin/activate
 python scripts/create_user.py shinichi
 ```
+
+### 填充默认 Mock 数据（可选）
+
+将 10 间示例店铺（`user_id = NULL`）写入生产数据库，图片使用 Unsplash 外链，`object_to_url` 会自动透传 `https://` URL，无需上传 GCS。
+
+```bash
+cd /www/wwwroot/Sakura/backend
+source .venv/bin/activate
+python seed_prod.py
+```
+
+> ⚠️ 脚本不幂等，重复执行会插入重复数据，请仅执行一次。
 
 ---
 
@@ -203,4 +217,23 @@ python scripts/create_user.py shinichi
 
 ---
 
-**文档版本**：v1.0（2026-05）
+---
+
+## 10. 更新日志
+
+### v1.1（2026-06-09）
+
+**灯箱修复（`ShopDetailView.vue`）**
+- 修复遮罩层不显示的 Bug：`bg-black/92` 不在 Tailwind 默认 opacity 刻度内（5 的倍数），改为 `bg-black/75`
+- 修复左右导航按钮被图片遮挡的问题：图片最大宽度由 `max-w-full` 改为 `max-w-[calc(100vw-5rem)]`，两侧各留 40px 给箭头按钮
+
+**代理端口修正（`vite.config.ts`）**
+- 前端开发代理统一由 `8000` 改为 `8001`，与后端实际启动端口一致
+
+**Mock 数据修正（`seed_local.py` / `seed_prod.py`）**
+- 移除一兰拉面中误用的寿司图片（`photo-1617196034183`）
+- 新增 `seed_prod.py`：从 `.env` 读取 `DATABASE_URL`，用于向生产数据库写入默认示例数据（不创建用户，`user_id = NULL`）
+
+---
+
+**文档版本**：v1.1（2026-06-09）
