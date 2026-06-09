@@ -97,7 +97,7 @@
 
 ## 6. 图片存储（GCS）
 
-- 图片上传至 GCS Bucket `sakura-photos-kudoushinichi`
+- 图片上传至配置的 GCS Bucket（见 `GCS_BUCKET_NAME` 环境变量）
 - 数据库存储 **对象路径**（如 `shops/{id}/abc.jpg`）
 - 后端使用 **Workload Identity**（VM 绑定 Service Account），无需密钥文件
 - 返回给前端时生成 **V4 签名 URL**，有效期 7 天
@@ -129,7 +129,7 @@ uvicorn app.main:app --reload --port 8001
 
 ```bash
 cd backend
-python scripts/create_user.py shinichi
+python scripts/create_user.py <username>
 ```
 
 ### 前端
@@ -151,12 +151,12 @@ cd frontend
 npm run build   # 产物在 frontend/dist/
 ```
 
-将 `dist/` 内容复制到服务器 `/var/www/sakura/dist/`。
+将 `dist/` 内容部署至服务器网站目录。
 
 ### 后端环境
 
 ```bash
-cd /var/www/sakura/backend
+cd <project-root>/backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -169,34 +169,27 @@ cp .env.example .env   # 填写生产值
 # 手动启动
 bash start.sh
 
-# 或使用 systemd（推荐）
-sudo cp /var/www/sakura/sakura-backend.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now sakura-backend
+# 或使用进程管理器（systemd / supervisor 等）管理，确保开机自启
 ```
 
 ### nginx 配置
 
-将 `nginx-sakura.conf` 中的内容合并到服务器已有的 `server {}` 块中，然后：
-
-```bash
-sudo nginx -t && sudo nginx -s reload
-```
+将 `nginx-sakura.conf` 中的内容合并到服务器已有的 `server {}` 块中，然后重新加载 nginx。
 
 ### 首次创建用户
 
 ```bash
-cd /www/wwwroot/Sakura/backend
+cd <project-root>/backend
 source .venv/bin/activate
-python scripts/create_user.py shinichi
+python scripts/create_user.py <username>
 ```
 
-### 填充默认 Mock 数据（可选）
+### 填充默认示例数据（可选）
 
-将 10 间示例店铺（`user_id = NULL`）写入生产数据库，图片使用 Unsplash 外链，`object_to_url` 会自动透传 `https://` URL，无需上传 GCS。
+将 10 间示例店铺写入生产数据库，图片使用公开外链，无需上传云存储。
 
 ```bash
-cd /www/wwwroot/Sakura/backend
+cd <project-root>/backend
 source .venv/bin/activate
 python seed_prod.py
 ```
@@ -214,8 +207,6 @@ python seed_prod.py
 | `ALLOWED_ORIGINS` | CORS 允许的域名（逗号分隔） |
 | `BASE_URL` | 服务器域名 |
 | `GCS_BUCKET_NAME` | GCS Bucket 名称 |
-
----
 
 ---
 
