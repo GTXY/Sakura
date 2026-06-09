@@ -237,7 +237,7 @@ const ratingHalf = computed(() => ((shop.value?.rating ?? 0) % 1) >= 0.5)
       >
         <div
           v-if="lightboxIndex !== null"
-          class="fixed inset-0 z-[100] bg-black/92 flex items-center justify-center"
+          class="fixed inset-0 z-[100] bg-black/75 flex items-center justify-center"
           @click.self="closeLightbox"
         >
           <!-- Close -->
@@ -267,7 +267,7 @@ const ratingHalf = computed(() => ((shop.value?.rating ?? 0) % 1) >= 0.5)
           <img
             :src="shop.photos[lightboxIndex]"
             :alt="shop.name"
-            class="max-w-full max-h-[85dvh] object-contain rounded-lg select-none"
+            class="max-w-[calc(100vw-5rem)] max-h-[85dvh] object-contain rounded-lg select-none"
           />
 
           <!-- Next -->
